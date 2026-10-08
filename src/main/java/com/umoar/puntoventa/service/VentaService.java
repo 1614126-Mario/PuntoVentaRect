@@ -15,7 +15,11 @@ public class VentaService {
     private final VentaRepository ventaRepository;
 
     public List<Venta> findAll() {
-        return ventaRepository.findAll();
+        return ventaRepository.findAllByOrderByFechaVentaDesc();
+    }
+
+    public List<Venta> findByTipoPedido(String tipoPedido) {
+        return ventaRepository.findByTipoPedidoOrderByFechaVentaDesc(tipoPedido);
     }
 
     public Optional<Venta> findById(Long id) {

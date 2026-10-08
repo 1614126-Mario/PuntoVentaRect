@@ -1,7 +1,11 @@
 package com.umoar.puntoventa.seeder;
 
+import com.umoar.puntoventa.model.Cliente;
+import com.umoar.puntoventa.model.Comercio;
 import com.umoar.puntoventa.model.Rol;
 import com.umoar.puntoventa.model.Usuario;
+import com.umoar.puntoventa.repository.ClienteRepository;
+import com.umoar.puntoventa.repository.ComercioRepository;
 import com.umoar.puntoventa.repository.RolRepository;
 import com.umoar.puntoventa.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 import java.util.Set;
 
 @Component
@@ -18,12 +24,16 @@ public class DataSeeder implements CommandLineRunner {
 
     private final RolRepository rolRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ClienteRepository clienteRepository;
+    private final ComercioRepository comercioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
         seedRoles();
         seedUsuarios();
+        seedComercio();
+        seedClientes();
     }
 
     private void seedRoles() {
@@ -84,5 +94,59 @@ public class DataSeeder implements CommandLineRunner {
                 log.info("✅ Usuario creado → cajero / cajero123 (ROLE_CAJERO)");
             }
         );
+    }
+
+    private void seedComercio() {
+        if (comercioRepository.count() == 0) {
+            Comercio comercio = Comercio.builder()
+                    .nombre("NOCTURNA BAR & GRILL")
+                    .nit("NOC-202610-HG1")
+                    .direccion("Av. Insurgentes Sur 1234, Ciudad de México")
+                    .telefono("+52 55 5555-8899")
+                    .build();
+            comercioRepository.save(comercio);
+            log.info("✅ Comercio creado por defecto: {}", comercio.getNombre());
+        }
+    }
+
+    private void seedClientes() {
+        if (clienteRepository.count() == 0) {
+            List<Cliente> clientes = List.of(
+                Cliente.builder()
+                        .nombre("Consumidor")
+                        .apellido("Final")
+                        .documento("XAXX010101000")
+                        .telefono("555-000-0000")
+                        .email("ventas@nocturnagrill.com")
+                        .direccion("Consumo en barra / mostrador")
+                        .build(),
+                Cliente.builder()
+                        .nombre("Mariana")
+                        .apellido("Flores Cruz")
+                        .documento("FLCM920815HA1")
+                        .telefono("555-123-4567")
+                        .email("mariana.flores@gmail.com")
+                        .direccion("Calle Durango 184, Col. Roma Norte, CDMX")
+                        .build(),
+                Cliente.builder()
+                        .nombre("Roberto")
+                        .apellido("Sánchez Vega")
+                        .documento("SAVR880421KM4")
+                        .telefono("555-987-6543")
+                        .email("roberto.sanchez@outlook.com")
+                        .direccion("Av. Revolución 450, Col. San Ángel, CDMX")
+                        .build(),
+                Cliente.builder()
+                        .nombre("Alejandro")
+                        .apellido("Gómez Ruiz")
+                        .documento("GORA950110XP8")
+                        .telefono("555-456-7890")
+                        .email("alejandro.gomez@empresa.com")
+                        .direccion("Paseo de la Reforma 222, Piso 14, Cuauhtémoc, CDMX")
+                        .build()
+            );
+            clienteRepository.saveAll(clientes);
+            log.info("✅ Clientes iniciales registrados: {}", clientes.size());
+        }
     }
 }

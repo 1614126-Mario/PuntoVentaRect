@@ -21,6 +21,28 @@ public class Venta {
     private LocalDateTime fechaVenta = LocalDateTime.now();
 
     private BigDecimal total;
+    private BigDecimal subtotal;
+    private BigDecimal iva;
+
+    @Column(name = "numero_factura")
+    private String numeroFactura;
+
+    @Column(name = "tipo_pedido")
+    private String tipoPedido; // "LOCAL", "EN_LINEA", "LLEVAR"
+
+    @Column(name = "numero_mesa")
+    private String numeroMesa; // Ej: "Mesa 4"
+
+    @Column(name = "direccion_entrega")
+    private String direccionEntrega;
+
+    @Column(name = "metodo_pago")
+    private String metodoPago;
+
+    private String estado;
+
+    @Column(length = 500)
+    private String notas;
 
     @ManyToOne
     @JoinColumn(name = "cliente_id")

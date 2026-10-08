@@ -17,6 +17,9 @@ public class DetalleVenta {
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
 
+    @Column(name = "nombre_producto")
+    private String nombreProducto;
+
     @ManyToOne
     @JoinColumn(name = "venta_id")
     @JsonIgnoreProperties("detalles")
