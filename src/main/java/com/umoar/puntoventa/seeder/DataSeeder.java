@@ -45,6 +45,10 @@ public class DataSeeder implements CommandLineRunner {
             rolRepository.save(Rol.builder().nombre("ROLE_CAJERO").build());
             log.info("✅ Rol creado: ROLE_CAJERO");
         }
+        if (rolRepository.findByNombre("ROLE_MESERO").isEmpty()) {
+            rolRepository.save(Rol.builder().nombre("ROLE_MESERO").build());
+            log.info("✅ Rol creado: ROLE_MESERO");
+        }
     }
 
     private void seedUsuarios() {
@@ -52,6 +56,8 @@ public class DataSeeder implements CommandLineRunner {
                 .orElseThrow(() -> new RuntimeException("Rol ROLE_ADMIN no encontrado"));
         Rol rolCajero = rolRepository.findByNombre("ROLE_CAJERO")
                 .orElseThrow(() -> new RuntimeException("Rol ROLE_CAJERO no encontrado"));
+        Rol rolMesero = rolRepository.findByNombre("ROLE_MESERO")
+                .orElseThrow(() -> new RuntimeException("Rol ROLE_MESERO no encontrado"));
 
         // Usuario admin / admin123
         usuarioRepository.findByUsername("admin").ifPresentOrElse(
@@ -92,6 +98,27 @@ public class DataSeeder implements CommandLineRunner {
                         .build();
                 usuarioRepository.save(cajero);
                 log.info("✅ Usuario creado → cajero / cajero123 (ROLE_CAJERO)");
+            }
+        );
+
+        // Usuario mesero / mesero123
+        usuarioRepository.findByUsername("mesero").ifPresentOrElse(
+            user -> {
+                user.setPassword(passwordEncoder.encode("mesero123"));
+                user.setActivo(true);
+                user.setRoles(Set.of(rolMesero));
+                usuarioRepository.save(user);
+                log.info("✅ Usuario listo → mesero / mesero123 (ROLE_MESERO)");
+            },
+            () -> {
+                Usuario mesero = Usuario.builder()
+                        .username("mesero")
+                        .password(passwordEncoder.encode("mesero123"))
+                        .activo(true)
+                        .roles(Set.of(rolMesero))
+                        .build();
+                usuarioRepository.save(mesero);
+                log.info("✅ Usuario creado → mesero / mesero123 (ROLE_MESERO)");
             }
         );
     }
