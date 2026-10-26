@@ -15,11 +15,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ventas")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
+@PreAuthorize("hasAnyRole('ADMIN','CAJERO','MESERO')")
 public class VentaController {
 
     private final VentaService ventaService;
@@ -107,6 +108,20 @@ public class VentaController {
 
         Venta nueva = ventaService.save(venta);
         return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
+    }
+
+    @PatchMapping("/{id}/cobro")
+    @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
+    public ResponseEntity<Venta> cobrar(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        return ventaService.findById(id)
+                .map(venta -> {
+                    venta.setEstado("FACTURADO");
+                    if (body != null && body.get("metodoPago") != null && !body.get("metodoPago").isBlank()) {
+                        venta.setMetodoPago(body.get("metodoPago"));
+                    }
+                    return ResponseEntity.ok(ventaService.save(venta));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
