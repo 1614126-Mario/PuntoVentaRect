@@ -97,7 +97,7 @@ public class VentaController {
         }
 
         if (venta.getIva() == null) {
-            BigDecimal ivaCalculado = venta.getSubtotal().multiply(BigDecimal.valueOf(0.16)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal ivaCalculado = venta.getSubtotal().multiply(BigDecimal.valueOf(0.13)).setScale(2, RoundingMode.HALF_UP);
             venta.setIva(ivaCalculado);
         }
 
