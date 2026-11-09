@@ -6,6 +6,14 @@ import com.umoar.puntoventa.model.Venta;
 import com.umoar.puntoventa.repository.VentaRepository;
 import com.umoar.puntoventa.service.ClienteService;
 import com.umoar.puntoventa.service.VentaService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,12 +30,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Endpoints públicos (sin autenticación) para que un consumidor haga pedidos en línea
- * y consulte el estado de su pedido. Ruta permitida en SecurityConfig: /api/publico/**
+ * Endpoints públicos (sin autenticación requerida) para realizar pedidos en línea y consultar su estado.
  */
 @RestController
 @RequestMapping("/api/publico")
 @RequiredArgsConstructor
+@Tag(name = "Pedidos Públicos", description = "Endpoints de acceso público para que clientes finales hagan pedidos en línea y consulten su estado")
 public class PedidoPublicoController {
 
     private static final BigDecimal IVA = BigDecimal.valueOf(0.13);
@@ -43,20 +51,68 @@ public class PedidoPublicoController {
     private final VentaRepository ventaRepository;
     private final ClienteService clienteService;
 
-    public record ItemPedido(String nombre, Integer cantidad, BigDecimal precio) {}
-
-    public record PedidoRequest(
+    @Schema(description = "Ítem o producto seleccionado dentro de una orden de pedido público")
+    public record ItemPedido(
+            @Schema(description = "Nombre o descripción del producto", example = "Hamburguesa Clásica", requiredMode = Schema.RequiredMode.REQUIRED)
             String nombre,
+
+            @Schema(description = "Cantidad ordenada", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
+            Integer cantidad,
+
+            @Schema(description = "Precio unitario acordado", example = "5.50", requiredMode = Schema.RequiredMode.REQUIRED)
+            BigDecimal precio
+    ) {}
+
+    @Schema(description = "Petición de creación de pedido por parte de un cliente final")
+    public record PedidoRequest(
+            @Schema(description = "Nombre completo de quien recibe el pedido", example = "María Hernández", requiredMode = Schema.RequiredMode.REQUIRED)
+            String nombre,
+
+            @Schema(description = "Teléfono de contacto para el repartidor (mínimo 8 dígitos)", example = "78901234", requiredMode = Schema.RequiredMode.REQUIRED)
             String telefono,
+
+            @Schema(description = "Correo electrónico para confirmación", example = "maria.hernandez@example.com")
             String email,
+
+            @Schema(description = "Dirección completa de entrega a domicilio", example = "Colonia Miramonte, Calle Los Cedros #23", requiredMode = Schema.RequiredMode.REQUIRED)
             String direccionEntrega,
+
+            @Schema(description = "Puntos de referencia para facilitar la llegada", example = "Frente al parque central, portón negro")
             String referencia,
+
+            @Schema(description = "Notas adicionales o instrucciones especiales", example = "Tocar el timbre con fuerza, sin cebolla por favor")
             String notas,
+
+            @Schema(description = "Método de pago seleccionado", example = "Efectivo", allowableValues = {"Efectivo", "Tarjeta", "Transferencia", "Pago en Línea"}, requiredMode = Schema.RequiredMode.REQUIRED)
             String metodoPago,
-            List<ItemPedido> items) {}
+
+            @Schema(description = "Listado de productos del pedido", requiredMode = Schema.RequiredMode.REQUIRED)
+            List<ItemPedido> items
+    ) {}
 
     @PostMapping("/pedidos")
-    public ResponseEntity<?> crearPedido(@RequestBody PedidoRequest req) {
+    @Operation(
+        summary = "Crear pedido público en línea",
+        description = "Permite a un consumidor final registrar un nuevo pedido sin necesidad de autenticarse, calculando subtotal, IVA y generando un folio único."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "201",
+            description = "Pedido creado satisfactoriamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = "{\"folio\": \"WEB-2026-123456\", \"estado\": \"PENDIENTE_PAGO\", \"total\": 12.43, \"items\": [{\"nombre\": \"Hamburguesa\", \"cantidad\": 2, \"precio\": 5.50}]}")
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos del pedido incompletos o inválidos",
+            content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"message\": \"Indica tu nombre.\"}"))
+        )
+    })
+    public ResponseEntity<?> crearPedido(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del pedido y del cliente", required = true)
+            @RequestBody PedidoRequest req) {
         String nombre = limpiar(req.nombre(), 100);
         String telefono = limpiar(req.telefono(), 30);
         String email = limpiar(req.email(), 100);
@@ -130,7 +186,28 @@ public class PedidoPublicoController {
     }
 
     @GetMapping("/pedidos/{folio}")
-    public ResponseEntity<?> consultarPedido(@PathVariable String folio) {
+    @Operation(
+        summary = "Consultar estado de pedido por folio",
+        description = "Consulta la información resumida y estado actual de un pedido en línea mediante su número de folio."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Información del pedido encontrada",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = "{\"folio\": \"WEB-2026-123456\", \"estado\": \"PENDIENTE_PAGO\", \"total\": 12.43}")
+            )
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "No se encontró ningún pedido en línea con ese folio",
+            content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"message\": \"No encontramos un pedido con ese folio.\"}"))
+        )
+    })
+    public ResponseEntity<?> consultarPedido(
+            @Parameter(description = "Folio del pedido (formato: WEB-YYYY-NNNNNN)", example = "WEB-2026-000123", required = true)
+            @PathVariable String folio) {
         return ventaRepository.findFirstByNumeroFactura(folio)
                 .filter(v -> "EN_LINEA".equals(v.getTipoPedido()))
                 .<ResponseEntity<?>>map(v -> ResponseEntity.ok(resumen(v, null)))

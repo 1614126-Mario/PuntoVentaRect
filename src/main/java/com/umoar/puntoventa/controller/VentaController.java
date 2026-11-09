@@ -5,6 +5,15 @@ import com.umoar.puntoventa.model.DetalleVenta;
 import com.umoar.puntoventa.model.Venta;
 import com.umoar.puntoventa.service.ClienteService;
 import com.umoar.puntoventa.service.VentaService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,39 +26,82 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Controlador REST para el procesamiento, consulta y cobro de Ventas y Comandas.
+ */
 @RestController
 @RequestMapping("/api/ventas")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('ADMIN','CAJERO','MESERO')")
+@Tag(name = "Ventas", description = "Operaciones de registro, consulta por cliente o tipo, y cobro de ventas en el Punto de Venta")
 public class VentaController {
 
     private final VentaService ventaService;
     private final ClienteService clienteService;
 
     @GetMapping
+    @Operation(summary = "Listar todas las ventas", description = "Obtiene el historial completo de ventas ordenadas de la más reciente a la más antigua.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Historial de ventas obtenido",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Venta.class)))),
+        @ApiResponse(responseCode = "401", description = "No autenticado")
+    })
     public ResponseEntity<List<Venta>> listar() {
         return ResponseEntity.ok(ventaService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Venta> obtenerPorId(@PathVariable Long id) {
+    @Operation(summary = "Obtener venta por ID", description = "Devuelve el registro detallado de una venta incluyendo sus renglones y cliente asociado.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Venta encontrada",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Venta.class))),
+        @ApiResponse(responseCode = "404", description = "Venta no encontrada")
+    })
+    public ResponseEntity<Venta> obtenerPorId(
+            @Parameter(description = "Identificador único de la venta", example = "100", required = true)
+            @PathVariable Long id) {
         return ventaService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/cliente/{clienteId}")
-    public ResponseEntity<List<Venta>> listarPorCliente(@PathVariable Long clienteId) {
+    @Operation(summary = "Listar ventas por cliente", description = "Filtra el historial de ventas vinculadas a un cliente específico.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ventas del cliente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Venta.class))))
+    })
+    public ResponseEntity<List<Venta>> listarPorCliente(
+            @Parameter(description = "Identificador del cliente", example = "1", required = true)
+            @PathVariable Long clienteId) {
         return ResponseEntity.ok(ventaService.findByClienteId(clienteId));
     }
 
     @GetMapping("/tipo/{tipoPedido}")
-    public ResponseEntity<List<Venta>> listarPorTipo(@PathVariable String tipoPedido) {
+    @Operation(summary = "Listar ventas por modalidad/tipo", description = "Filtra ventas según su tipo de pedido (ej: LOCAL, EN_LINEA, LLEVAR).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ventas filtradas por tipo",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Venta.class))))
+    })
+    public ResponseEntity<List<Venta>> listarPorTipo(
+            @Parameter(description = "Tipo de pedido", example = "LOCAL", schema = @Schema(allowableValues = {"LOCAL", "EN_LINEA", "LLEVAR"}), required = true)
+            @PathVariable String tipoPedido) {
         return ResponseEntity.ok(ventaService.findByTipoPedido(tipoPedido));
     }
 
     @PostMapping
-    public ResponseEntity<Venta> crear(@RequestBody Venta venta) {
+    @Operation(
+        summary = "Registrar nueva venta",
+        description = "Registra una venta o comanda en el sistema, calculando automáticamente subtotal, IVA del 13%, total y asignando folio correlativo si no se especifica."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Venta registrada con éxito",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Venta.class))),
+        @ApiResponse(responseCode = "400", description = "Datos de venta o detalles inválidos")
+    })
+    public ResponseEntity<Venta> crear(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Estructura de la venta con sus líneas de detalle", required = true)
+            @RequestBody Venta venta) {
         if (venta.getFechaVenta() == null) {
             venta.setFechaVenta(LocalDateTime.now());
         }
@@ -112,7 +164,23 @@ public class VentaController {
 
     @PatchMapping("/{id}/cobro")
     @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
-    public ResponseEntity<Venta> cobrar(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+    @Operation(
+        summary = "Cobrar y facturar venta",
+        description = "Actualiza el estado de la venta a FACTURADO y asigna opcionalmente el método de pago utilizado."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Venta cobrada exitosamente",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Venta.class))),
+        @ApiResponse(responseCode = "404", description = "Venta no encontrada")
+    })
+    public ResponseEntity<Venta> cobrar(
+            @Parameter(description = "Identificador de la venta a cobrar", example = "100", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Datos opcionales del cobro (ej: metodoPago)",
+                content = @Content(examples = @ExampleObject(value = "{\"metodoPago\": \"Tarjeta\"}"))
+            )
+            @RequestBody(required = false) Map<String, String> body) {
         return ventaService.findById(id)
                 .map(venta -> {
                     venta.setEstado("FACTURADO");
@@ -126,7 +194,15 @@ public class VentaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+    @Operation(summary = "Eliminar venta", description = "Elimina permanentemente una venta y sus líneas de detalle (Requiere rol ADMIN).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Venta eliminada"),
+        @ApiResponse(responseCode = "404", description = "Venta no encontrada"),
+        @ApiResponse(responseCode = "403", description = "Requiere rol ADMIN")
+    })
+    public ResponseEntity<Void> eliminar(
+            @Parameter(description = "Identificador de la venta a eliminar", example = "100", required = true)
+            @PathVariable Long id) {
         if (!ventaService.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
