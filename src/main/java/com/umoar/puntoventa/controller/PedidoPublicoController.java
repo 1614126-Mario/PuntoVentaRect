@@ -43,7 +43,7 @@ public class PedidoPublicoController {
     private static final int MAX_CANTIDAD = 50;
     private static final BigDecimal MAX_PRECIO = BigDecimal.valueOf(500);
     private static final Set<String> METODOS_PAGO = Set.of(
-            "Efectivo", "Tarjeta", "Transferencia", "Pago en Línea");
+            "Efectivo", "Tarjeta", "Transferencia");
 
     private final SecureRandom random = new SecureRandom();
 
