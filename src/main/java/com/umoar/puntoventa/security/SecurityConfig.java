@@ -63,10 +63,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite orígenes del frontend de desarrollo (Vite por defecto 5173, etc.)
+        // Permite orígenes del frontend de desarrollo y de producción en la nube
         configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:[*]",
-            "http://127.0.0.1:[*]"
+            "http://127.0.0.1:[*]",
+            "https://*.onrender.com",
+            "https://*.vercel.app",
+            "https://*.netlify.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
