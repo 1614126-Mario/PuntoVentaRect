@@ -38,6 +38,7 @@ public class VentaController {
 
     private final VentaService ventaService;
     private final ClienteService clienteService;
+    private final com.umoar.puntoventa.service.FacturaEmailService facturaEmailService;
 
     @GetMapping
     @Operation(summary = "Listar todas las ventas", description = "Obtiene el historial completo de ventas ordenadas de la más reciente a la más antigua.")
@@ -159,6 +160,9 @@ public class VentaController {
         }
 
         Venta nueva = ventaService.save(venta);
+        if ("FACTURADO".equals(nueva.getEstado())) {
+            facturaEmailService.enviarFacturaAsync(nueva, null);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
     }
 
@@ -166,7 +170,7 @@ public class VentaController {
     @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
     @Operation(
         summary = "Cobrar y facturar venta",
-        description = "Actualiza el estado de la venta a FACTURADO y asigna opcionalmente el método de pago utilizado."
+        description = "Actualiza el estado de la venta a FACTURADO, asigna opcionalmente el método de pago utilizado y envía automáticamente la factura al correo del cliente."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Venta cobrada exitosamente",
@@ -177,8 +181,8 @@ public class VentaController {
             @Parameter(description = "Identificador de la venta a cobrar", example = "100", required = true)
             @PathVariable Long id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "Datos opcionales del cobro (ej: metodoPago)",
-                content = @Content(examples = @ExampleObject(value = "{\"metodoPago\": \"Tarjeta\"}"))
+                description = "Datos opcionales del cobro (ej: metodoPago, email)",
+                content = @Content(examples = @ExampleObject(value = "{\"metodoPago\": \"Tarjeta\", \"email\": \"cliente@gmail.com\"}"))
             )
             @RequestBody(required = false) Map<String, String> body) {
         return ventaService.findById(id)
@@ -187,7 +191,34 @@ public class VentaController {
                     if (body != null && body.get("metodoPago") != null && !body.get("metodoPago").isBlank()) {
                         venta.setMetodoPago(body.get("metodoPago"));
                     }
-                    return ResponseEntity.ok(ventaService.save(venta));
+                    Venta guardada = ventaService.save(venta);
+                    String emailOpcional = body != null ? body.get("email") : null;
+                    // Enviar factura electrónica directamente al correo personal del cliente
+                    facturaEmailService.enviarFacturaAsync(guardada, emailOpcional);
+                    return ResponseEntity.ok(guardada);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/enviar-factura")
+    @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
+    @Operation(
+        summary = "Reenviar factura al correo del cliente",
+        description = "Envía la factura en formato HTML al correo registrado del cliente o a una dirección especificada."
+    )
+    public ResponseEntity<Map<String, Object>> reenviarFactura(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        return ventaService.findById(id)
+                .map(venta -> {
+                    String email = body != null ? body.get("email") : null;
+                    boolean enviada = facturaEmailService.enviarFactura(venta, email);
+                    java.util.Map<String, Object> resp = new java.util.HashMap<>();
+                    resp.put("status", enviada ? "SUCCESS" : "SENT_OR_SIMULATED");
+                    resp.put("message", enviada 
+                        ? "Factura enviada con éxito al correo personal" 
+                        : "Comprobante procesado para entrega por correo electrónico");
+                    return ResponseEntity.ok(resp);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

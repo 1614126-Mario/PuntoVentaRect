@@ -53,6 +53,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Spring Mail (Facturación Electrónica por Correo) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Springdoc OpenAPI with Scalar UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
