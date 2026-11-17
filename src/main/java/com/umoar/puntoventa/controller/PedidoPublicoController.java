@@ -237,6 +237,17 @@ public class PedidoPublicoController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("<h2>Factura no encontrada</h2>"));
     }
 
+    @DeleteMapping("/pedidos/{folio}")
+    @Operation(summary = "Cancelar pedido en línea por folio", description = "Elimina permanentemente un pedido en línea por su folio.")
+    public ResponseEntity<Void> eliminarPedidoPorFolio(@PathVariable String folio) {
+        java.util.Optional<Venta> opt = ventaRepository.findFirstByNumeroFactura(folio);
+        if (opt.isPresent()) {
+            ventaRepository.delete(opt.get());
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     private Map<String, Object> resumen(Venta v, String destino) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("folio", v.getNumeroFactura());

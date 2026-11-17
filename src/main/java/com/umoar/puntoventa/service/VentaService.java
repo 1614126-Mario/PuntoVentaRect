@@ -52,6 +52,17 @@ public class VentaService {
     }
 
     /**
+     * Busca una venta por su número de factura o folio.
+     *
+     * @param numeroFactura Número o folio correlativo.
+     * @return {@link Optional} con la venta encontrada.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Venta> findByNumeroFactura(String numeroFactura) {
+        return ventaRepository.findFirstByNumeroFactura(numeroFactura);
+    }
+
+    /**
      * Busca todas las ventas asociadas a un determinado cliente.
      *
      * @param clienteId Identificador del cliente.
@@ -85,6 +96,35 @@ public class VentaService {
     @Transactional
     public void deleteById(Long id) {
         ventaRepository.deleteById(id);
+    }
+
+    /**
+     * Elimina permanentemente una venta buscando por su ID numérico o por su folio / número de factura.
+     *
+     * @param idOrFolio Identificador numérico o folio correlativo (ej: "100" o "WEB-2026-123456").
+     * @return {@code true} si fue encontrada y eliminada, {@code false} si no existía.
+     */
+    @Transactional
+    public boolean deleteByIdOrNumeroFactura(String idOrFolio) {
+        if (idOrFolio == null || idOrFolio.isBlank()) {
+            return false;
+        }
+
+        try {
+            Long numericId = Long.parseLong(idOrFolio);
+            if (ventaRepository.existsById(numericId)) {
+                ventaRepository.deleteById(numericId);
+                return true;
+            }
+        } catch (NumberFormatException ignored) {}
+
+        java.util.Optional<Venta> opt = ventaRepository.findFirstByNumeroFactura(idOrFolio);
+        if (opt.isPresent()) {
+            ventaRepository.delete(opt.get());
+            return true;
+        }
+
+        return false;
     }
 
     /**

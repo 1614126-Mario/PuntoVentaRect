@@ -223,21 +223,56 @@ public class VentaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Eliminar venta", description = "Elimina permanentemente una venta y sus líneas de detalle (Requiere rol ADMIN).")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Venta eliminada"),
-        @ApiResponse(responseCode = "404", description = "Venta no encontrada"),
-        @ApiResponse(responseCode = "403", description = "Requiere rol ADMIN")
-    })
-    public ResponseEntity<Void> eliminar(
-            @Parameter(description = "Identificador de la venta a eliminar", example = "100", required = true)
-            @PathVariable Long id) {
-        if (!ventaService.existsById(id)) {
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','CAJERO','MESERO')")
+    @Operation(summary = "Actualizar venta/pedido", description = "Actualiza el estado o datos de una venta o pedido existente.")
+    public ResponseEntity<Venta> actualizar(
+            @Parameter(description = "Identificador o folio de la venta a actualizar", example = "100", required = true)
+            @PathVariable String id,
+            @RequestBody Venta ventaDatos) {
+        Long numericId = null;
+        try {
+            numericId = Long.parseLong(id);
+        } catch (NumberFormatException ignored) {}
+
+        java.util.Optional<Venta> opt = numericId != null ? ventaService.findById(numericId) : java.util.Optional.empty();
+        if (opt.isEmpty()) {
+            opt = ventaService.findByNumeroFactura(id);
+        }
+
+        if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        ventaService.deleteById(id);
+
+        Venta existente = opt.get();
+        if (ventaDatos.getEstado() != null) existente.setEstado(ventaDatos.getEstado());
+        if (ventaDatos.getMetodoPago() != null) existente.setMetodoPago(ventaDatos.getMetodoPago());
+        if (ventaDatos.getNotas() != null) existente.setNotas(ventaDatos.getNotas());
+        if (ventaDatos.getTipoPedido() != null) existente.setTipoPedido(ventaDatos.getTipoPedido());
+        if (ventaDatos.getNumeroMesa() != null) existente.setNumeroMesa(ventaDatos.getNumeroMesa());
+        if (ventaDatos.getDireccionEntrega() != null) existente.setDireccionEntrega(ventaDatos.getDireccionEntrega());
+        if (ventaDatos.getTotal() != null) existente.setTotal(ventaDatos.getTotal());
+        if (ventaDatos.getSubtotal() != null) existente.setSubtotal(ventaDatos.getSubtotal());
+        if (ventaDatos.getIva() != null) existente.setIva(ventaDatos.getIva());
+
+        Venta guardada = ventaService.save(existente);
+        return ResponseEntity.ok(guardada);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','CAJERO','MESERO')")
+    @Operation(summary = "Eliminar venta", description = "Elimina permanentemente una venta y sus líneas de detalle por ID numérico o folio correlativo.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Venta eliminada permanentemente"),
+        @ApiResponse(responseCode = "404", description = "Venta no encontrada")
+    })
+    public ResponseEntity<Void> eliminar(
+            @Parameter(description = "Identificador numérico o folio de la venta a eliminar", example = "100", required = true)
+            @PathVariable String id) {
+        boolean eliminada = ventaService.deleteByIdOrNumeroFactura(id);
+        if (!eliminada) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.noContent().build();
     }
 }
