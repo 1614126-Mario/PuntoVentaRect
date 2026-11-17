@@ -68,6 +68,9 @@ public class PedidoPublicoController {
             @Schema(description = "Nombre completo de quien recibe el pedido", example = "María Hernández", requiredMode = Schema.RequiredMode.REQUIRED)
             String nombre,
 
+            @Schema(description = "Documento de identidad (DUI) del cliente", example = "01234567-8", requiredMode = Schema.RequiredMode.REQUIRED)
+            String dui,
+
             @Schema(description = "Teléfono de contacto para el repartidor (mínimo 8 dígitos)", example = "78901234", requiredMode = Schema.RequiredMode.REQUIRED)
             String telefono,
 
@@ -114,13 +117,22 @@ public class PedidoPublicoController {
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del pedido y del cliente", required = true)
             @RequestBody PedidoRequest req) {
         String nombre = limpiar(req.nombre(), 100);
+        String duiRaw = req.dui() == null ? "" : req.dui().trim();
+        // Si ingresa 9 dígitos numéricos directos, formatear a XXXXXXXX-X
+        if (duiRaw.matches("^\\d{9}$")) {
+            duiRaw = duiRaw.substring(0, 8) + "-" + duiRaw.substring(8);
+        }
+        String dui = limpiar(duiRaw, 20);
         String telefono = limpiar(req.telefono(), 30);
         String email = limpiar(req.email(), 100);
         String direccion = limpiar(req.direccionEntrega(), 180);
         String referencia = limpiar(req.referencia(), 60);
         String notas = limpiar(req.notas(), 400);
 
-        if (nombre.isEmpty()) return error("Indica tu nombre.");
+        if (nombre.isEmpty()) return error("Indica tu nombre completo.");
+        if (dui.isEmpty() || !dui.matches("^\\d{8}-\\d$")) {
+            return error("Debes ingresar un número de DUI salvadoreño válido (ejemplo: 12345678-9).");
+        }
         if (telefono.length() < 8) return error("Indica un teléfono de contacto válido.");
         if (direccion.length() < 10) return error("Indica la dirección completa de entrega.");
         if (req.items() == null || req.items().isEmpty() || req.items().size() > MAX_ITEMS) {
@@ -158,6 +170,7 @@ public class PedidoPublicoController {
         // Siempre se crea un cliente nuevo para no modificar datos de clientes existentes.
         Cliente cliente = clienteService.save(Cliente.builder()
                 .nombre(nombre)
+                .documento(dui)
                 .telefono(telefono)
                 .email(email.isEmpty() ? null : email)
                 .direccion(direccion)
@@ -224,6 +237,10 @@ public class PedidoPublicoController {
         map.put("subtotal", v.getSubtotal());
         map.put("iva", v.getIva());
         map.put("total", v.getTotal());
+        if (v.getCliente() != null) {
+            map.put("clienteNombre", v.getCliente().getNombre());
+            map.put("clienteDui", v.getCliente().getDocumento());
+        }
         // La dirección solo se devuelve al crear el pedido, no en la consulta por folio.
         if (destino != null) map.put("direccionEntrega", destino);
         List<Map<String, Object>> items = new ArrayList<>();
