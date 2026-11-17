@@ -50,6 +50,7 @@ public class PedidoPublicoController {
     private final VentaService ventaService;
     private final VentaRepository ventaRepository;
     private final ClienteService clienteService;
+    private final com.umoar.puntoventa.service.FacturaEmailService facturaEmailService;
 
     @Schema(description = "Ítem o producto seleccionado dentro de una orden de pedido público")
     public record ItemPedido(
@@ -226,6 +227,14 @@ public class PedidoPublicoController {
                 .<ResponseEntity<?>>map(v -> ResponseEntity.ok(resumen(v, null)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("message", "No encontramos un pedido con ese folio.")));
+    }
+
+    @GetMapping(value = "/pedidos/{folio}/factura", produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
+    @Operation(summary = "Ver factura electrónica oficial en HTML", description = "Genera el comprobante oficial en formato visual para el cliente final.")
+    public ResponseEntity<String> verFacturaHtml(@PathVariable String folio) {
+        return ventaRepository.findFirstByNumeroFactura(folio)
+                .map(v -> ResponseEntity.ok(facturaEmailService.generarHtmlFactura(v, v.getCliente() != null ? v.getCliente().getEmail() : "Consumidor")))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("<h2>Factura no encontrada</h2>"));
     }
 
     private Map<String, Object> resumen(Venta v, String destino) {

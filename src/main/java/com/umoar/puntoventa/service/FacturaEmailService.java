@@ -87,7 +87,7 @@ public class FacturaEmailService {
     /**
      * Construye la plantilla HTML visual para la factura electrónica usando StringBuilder.
      */
-    private String generarHtmlFactura(Venta venta, String emailDestino) {
+    public String generarHtmlFactura(Venta venta, String emailDestino) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
         String fecha = venta.getFechaVenta() != null ? venta.getFechaVenta().format(formatter) : "Fecha actual";
 
