@@ -3,6 +3,7 @@ package com.umoar.puntoventa.repository;
 import com.umoar.puntoventa.model.Categoria;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.Optional;
 
 /**
  * Repositorio Spring Data JPA para la entidad {@link Categoria}.
@@ -10,4 +11,5 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
+    Optional<Categoria> findByNombre(String nombre);
 }

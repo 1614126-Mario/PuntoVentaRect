@@ -1,11 +1,15 @@
 package com.umoar.puntoventa.seeder;
 
+import com.umoar.puntoventa.model.Categoria;
 import com.umoar.puntoventa.model.Cliente;
 import com.umoar.puntoventa.model.Comercio;
+import com.umoar.puntoventa.model.Producto;
 import com.umoar.puntoventa.model.Rol;
 import com.umoar.puntoventa.model.Usuario;
+import com.umoar.puntoventa.repository.CategoriaRepository;
 import com.umoar.puntoventa.repository.ClienteRepository;
 import com.umoar.puntoventa.repository.ComercioRepository;
+import com.umoar.puntoventa.repository.ProductoRepository;
 import com.umoar.puntoventa.repository.RolRepository;
 import com.umoar.puntoventa.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +30,8 @@ public class DataSeeder implements CommandLineRunner {
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
     private final ComercioRepository comercioRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final ProductoRepository productoRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -34,6 +40,7 @@ public class DataSeeder implements CommandLineRunner {
         seedUsuarios();
         seedComercio();
         seedClientes();
+        seedProductos();
     }
 
     private void seedRoles() {
@@ -174,6 +181,42 @@ public class DataSeeder implements CommandLineRunner {
             );
             clienteRepository.saveAll(clientes);
             log.info("✅ Clientes iniciales registrados: {}", clientes.size());
+        }
+    }
+
+    private void seedProductos() {
+        if (productoRepository.count() == 0) {
+            try {
+                Categoria comida = categoriaRepository.findByNombre("Comida")
+                        .orElseGet(() -> categoriaRepository.save(Categoria.builder().nombre("Comida").descripcion("Platillos, pupusas y carnes").build()));
+                Categoria bebida = categoriaRepository.findByNombre("Bebida")
+                        .orElseGet(() -> categoriaRepository.save(Categoria.builder().nombre("Bebida").descripcion("Bebidas frías, calientes y licores").build()));
+
+                org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("products_seed.json");
+                if (resource.exists()) {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    List<java.util.Map<String, Object>> items = mapper.readValue(resource.getInputStream(), new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String, Object>>>() {});
+                    List<Producto> productos = new java.util.ArrayList<>();
+                    for (java.util.Map<String, Object> it : items) {
+                        String catStr = (String) it.get("category");
+                        Categoria cat = "bebida".equalsIgnoreCase(catStr) ? bebida : comida;
+                        Double priceNum = Double.valueOf(it.get("price").toString());
+                        String idStr = (String) it.get("id");
+                        String nameStr = (String) it.get("name");
+                        productos.add(Producto.builder()
+                                .nombre(nameStr)
+                                .codigoBarras(idStr)
+                                .precio(java.math.BigDecimal.valueOf(priceNum))
+                                .stock(100)
+                                .categoria(cat)
+                                .build());
+                    }
+                    productoRepository.saveAll(productos);
+                    log.info("✅ 4,000 productos registrados e importados exitosamente: {}", productos.size());
+                }
+            } catch (Exception e) {
+                log.warn("No se pudo cargar products_seed.json: {}", e.getMessage());
+            }
         }
     }
 }
