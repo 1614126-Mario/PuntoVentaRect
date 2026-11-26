@@ -275,4 +275,38 @@ public class VentaController {
         }
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/resumen")
+    @Operation(summary = "Resumen de ventas para reportes")
+    public ResponseEntity<Map<String, Object>> resumen() {
+        List<Venta> todas = ventaService.findAll();
+
+        LocalDateTime hoy = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime inicioMes = LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay();
+
+        BigDecimal totalGeneral = todas.stream()
+            .filter(v -> "FACTURADO".equals(v.getEstado()))
+            .map(v -> v.getTotal() != null ? v.getTotal() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalHoy = todas.stream()
+            .filter(v -> "FACTURADO".equals(v.getEstado()) && v.getFechaVenta() != null && v.getFechaVenta().isAfter(hoy))
+            .map(v -> v.getTotal() != null ? v.getTotal() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalMes = todas.stream()
+            .filter(v -> "FACTURADO".equals(v.getEstado()) && v.getFechaVenta() != null && v.getFechaVenta().isAfter(inicioMes))
+            .map(v -> v.getTotal() != null ? v.getTotal() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long countFacturadas = todas.stream().filter(v -> "FACTURADO".equals(v.getEstado())).count();
+
+        Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("totalGeneral", totalGeneral);
+        resp.put("totalHoy", totalHoy);
+        resp.put("totalMes", totalMes);
+        resp.put("transacciones", countFacturadas);
+        resp.put("ticketPromedio", countFacturadas > 0 ? totalGeneral.divide(BigDecimal.valueOf(countFacturadas), 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO);
+        return ResponseEntity.ok(resp);
+    }
 }
